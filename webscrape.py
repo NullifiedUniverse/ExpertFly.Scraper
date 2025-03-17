@@ -110,7 +110,7 @@ def main():
         login_to_expertflyer(driver, username, password)
         fill_fare_search_form(driver)
         submit_search(driver)
-        time.sleep(30) #Improve this with explicit waits for results
+        time.sleep(1) #Improve this with explicit waits for results
     except Exception as e:
         logging.error(f"An error occurred: {e}")
     finally:

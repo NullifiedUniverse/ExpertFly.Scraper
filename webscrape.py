@@ -110,7 +110,37 @@ def main():
         login_to_expertflyer(driver, username, password)
         fill_fare_search_form(driver)
         submit_search(driver)
-        time.sleep(1) #Improve this with explicit waits for results
+
+        # Wait for page to load completely (especially Javascript elements) - Implicitly handled by WebDriverWait in subsequent steps
+
+        # Click "Share Results" button using provided XPath
+        share_results_locator = (By.XPATH, "/html/body/div[1]/div[4]/div[2]/form/span[2]/a")
+        logging.info("Waiting for 'Share Results' button to be clickable...")
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable(share_results_locator))
+        logging.info("'Share Results' button is now clickable.")
+        click_element(driver, *share_results_locator)
+        logging.info("Clicked 'Share Results' button.")
+
+
+        # Wait for the dropdown menu to appear and for "Download as File" button to be visible, then clickable
+        # Using provided XPath for "Download as File" button
+        download_button_locator = (By.XPATH, "/html/body/div[1]/div[4]/div[2]/div[2]/form/div[3]/input[3]")
+
+        logging.info("Waiting for 'Download as File' button to be visible...")
+        WebDriverWait(driver, 20).until(EC.visibility_of_element_located(download_button_locator))
+        logging.info("'Download as File' button is now visible.")
+
+        logging.info("Waiting for 'Download as File' button to be clickable...")
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable(download_button_locator))
+        logging.info("'Download as File' button is now clickable.")
+
+
+        click_element(driver, *download_button_locator, timeout=20) # Increased timeout to 20 seconds for download button
+        logging.info("Clicked 'Download as File' button.")
+
+        time.sleep(3)
+
+
     except Exception as e:
         logging.error(f"An error occurred: {e}")
     finally:

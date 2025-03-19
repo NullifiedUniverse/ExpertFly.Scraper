@@ -7,29 +7,30 @@ import logging
 import sys
 import time
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stdout)
 
 def setup_browser():
-    """Initializes and configures the Chrome WebDriver."""
     chrome_options = webdriver.ChromeOptions()
-    # chrome_options.add_argument("--headless")  # Enable for headless mode
-    prefs = {"profile.managed_default_content_settings.images": 2}  # Disable images
+    #chrome_options.add_argument("--headless=new")
+    prefs = {"profile.managed_default_content_settings.images": 2,
+             "profile.default_content_setting_values.notifications": 2,
+             "profile.default_content_setting_values.popups": 2}
     chrome_options.add_experimental_option("prefs", prefs)
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
     return webdriver.Chrome(options=chrome_options)
 
-def navigate_to_page(driver, url, timeout=10):
-    """Navigates to the specified URL and waits for the page to load."""
+def navigate_to_page(driver, url, timeout=5):
     try:
         driver.get(url)
-        WebDriverWait(driver, timeout).until(EC.url_contains(url)) #Verify url is correct
+        WebDriverWait(driver, timeout).until(EC.url_contains(url))
         logging.info(f"Navigated to: {url}")
     except Exception as e:
         logging.error(f"Failed to navigate to {url}: {e}")
         raise
 
-def enter_text(driver, by_type, locator, text, timeout=10):
-    """Enters text into a specified input field."""
+def enter_text(driver, by_type, locator, text, timeout=5):
     try:
         element = WebDriverWait(driver, timeout).until(EC.presence_of_element_located((by_type, locator)))
         element.clear()
@@ -39,8 +40,7 @@ def enter_text(driver, by_type, locator, text, timeout=10):
         logging.error(f"Failed to enter text into {locator}: {e}")
         raise
 
-def click_element(driver, by_type, locator, timeout=10):
-    """Clicks on a specified element."""
+def click_element(driver, by_type, locator, timeout=5):
     try:
         element = WebDriverWait(driver, timeout).until(EC.element_to_be_clickable((by_type, locator)))
         element.click()
@@ -49,8 +49,7 @@ def click_element(driver, by_type, locator, timeout=10):
         logging.error(f"Failed to click element {locator}: {e}")
         raise
 
-def select_dropdown(driver, by_type, locator, index, timeout=10):
-    """Selects an option from a dropdown menu by index."""
+def select_dropdown(driver, by_type, locator, index, timeout=5):
     try:
         select_element = WebDriverWait(driver, timeout).until(EC.presence_of_element_located((by_type, locator)))
         select = Select(select_element)
@@ -62,7 +61,6 @@ def select_dropdown(driver, by_type, locator, index, timeout=10):
         raise
 
 def login_to_expertflyer(driver, username, password):
-    """Logs in to ExpertFlyer."""
     navigate_to_page(driver, "https://www.expertflyer.com/login.do")
     enter_text(driver, By.NAME, "email", username)
     enter_text(driver, By.NAME, "password", password)
@@ -70,7 +68,6 @@ def login_to_expertflyer(driver, username, password):
     logging.info("Login successful.")
 
 def fill_fare_search_form(driver):
-    """Fills the fare search form."""
     navigate_to_page(driver, "https://www.expertflyer.com/air/fareInformation.do")
     today = date.today().strftime("%m/%d/%Y")
     one_week_later = (date.today() + timedelta(days=7)).strftime("%m/%d/%Y")
@@ -89,20 +86,34 @@ def fill_fare_search_form(driver):
         enter_text(driver, by_type, locator, value)
 
     dropdown_config = [
-        (By.NAME, "passengerType", 0),  # Adult
-        (By.NAME, "currencyCode", 45),  # Currency selection
-        (By.NAME, "cabin", 0),  # Default cabin
+        (By.NAME, "passengerType", 0),
+        (By.NAME, "currencyCode", 45),
+        (By.NAME, "cabin", 0),
     ]
     for by_type, locator, index in dropdown_config:
         select_dropdown(driver, by_type, locator, index)
 
 def submit_search(driver):
-    """Submits the fare search form."""
     click_element(driver, By.NAME, "btnSearch")
     logging.info("Search submitted successfully.")
 
+def download_results(driver):
+    share_results_locator = (By.XPATH, "/html/body/div[1]/div[4]/div[2]/form/span[2]/a")
+    logging.info("Waiting for 'Share Results' button...")
+    WebDriverWait(driver, 0.5).until(EC.element_to_be_clickable(share_results_locator))
+    click_element(driver, *share_results_locator, timeout=0.5)
+    logging.info("Clicked 'Share Results' button.")
+
+    download_button_locator = (By.XPATH, "/html/body/div[1]/div[4]/div[2]/div[2]/form/div[3]/input[3]")
+    logging.info("Waiting for 'Download as File' button...")
+    WebDriverWait(driver, 0.5).until(EC.visibility_of_element_located(download_button_locator))
+    WebDriverWait(driver, 0.5).until(EC.element_to_be_clickable(download_button_locator))
+    click_element(driver, *download_button_locator, timeout=10)
+    logging.info("Clicked 'Download as File' button.")
+    time.sleep(2)
+
+
 def main():
-    """Main function to execute the script."""
     driver = setup_browser()
     try:
         username = "andrewpan0729@gmail.com"
@@ -110,36 +121,7 @@ def main():
         login_to_expertflyer(driver, username, password)
         fill_fare_search_form(driver)
         submit_search(driver)
-
-        # Wait for page to load completely (especially Javascript elements) - Implicitly handled by WebDriverWait in subsequent steps
-
-        # Click "Share Results" button using provided XPath
-        share_results_locator = (By.XPATH, "/html/body/div[1]/div[4]/div[2]/form/span[2]/a")
-        logging.info("Waiting for 'Share Results' button to be clickable...")
-        WebDriverWait(driver, 20).until(EC.element_to_be_clickable(share_results_locator))
-        logging.info("'Share Results' button is now clickable.")
-        click_element(driver, *share_results_locator)
-        logging.info("Clicked 'Share Results' button.")
-
-
-        # Wait for the dropdown menu to appear and for "Download as File" button to be visible, then clickable
-        # Using provided XPath for "Download as File" button
-        download_button_locator = (By.XPATH, "/html/body/div[1]/div[4]/div[2]/div[2]/form/div[3]/input[3]")
-
-        logging.info("Waiting for 'Download as File' button to be visible...")
-        WebDriverWait(driver, 20).until(EC.visibility_of_element_located(download_button_locator))
-        logging.info("'Download as File' button is now visible.")
-
-        logging.info("Waiting for 'Download as File' button to be clickable...")
-        WebDriverWait(driver, 20).until(EC.element_to_be_clickable(download_button_locator))
-        logging.info("'Download as File' button is now clickable.")
-
-
-        click_element(driver, *download_button_locator, timeout=20) # Increased timeout to 20 seconds for download button
-        logging.info("Clicked 'Download as File' button.")
-
-        time.sleep(3)
-
+        download_results(driver)
 
     except Exception as e:
         logging.error(f"An error occurred: {e}")
